@@ -1,38 +1,64 @@
 import { BrisaLogo } from '@/components';
+import { BrisaHeader } from '@/components/BrisaHeader';
 import { ThemedText } from '@/components/ThemedText';
 import { heroSlides, newsData } from '@/constants/AppData';
 import { utils } from '@/constants/Utilities';
-import { useRef, useState } from 'react';
-import { Dimensions, Image, Linking, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Dimensions, Image, Linking, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 const { width } = Dimensions.get('window');
+const TOTAL_SLIDES = 5; // heroSlides.length yerine sabit değer
 
 export default function HomeScreen() {
-  const scrollViewRef = useRef<ScrollView>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
+
+  // Auto-slide effect for web
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSlide(prev => (prev + 1) % TOTAL_SLIDES);
+    }, 5000); // 5 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   const nextSlide = () => {
-    const next = (currentSlide + 1) % heroSlides.length;
+    const next = (currentSlide + 1) % TOTAL_SLIDES;
     setCurrentSlide(next);
-    scrollViewRef.current?.scrollTo({
-      x: next * width,
-      animated: true,
-    });
   };
 
   const prevSlide = () => {
-    const prev = currentSlide === 0 ? heroSlides.length - 1 : currentSlide - 1;
+    const prev = currentSlide === 0 ? TOTAL_SLIDES - 1 : currentSlide - 1;
     setCurrentSlide(prev);
-    scrollViewRef.current?.scrollTo({
-      x: prev * width,
-      animated: true,
-    });
   };
 
-  const handleScroll = (event: any) => {
-    const contentOffset = event.nativeEvent.contentOffset;
-    const slideIndex = Math.round(contentOffset.x / width);
-    setCurrentSlide(slideIndex);
+  const goToSlide = (index: number) => {
+    setCurrentSlide(index);
+  };
+
+  // Touch/Swipe handlers
+  const handleTouchStart = (event: any) => {
+    setTouchEnd(0); // Reset touchEnd
+    setTouchStart(event.nativeEvent.pageX);
+  };
+
+  const handleTouchMove = (event: any) => {
+    setTouchEnd(event.nativeEvent.pageX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe) {
+      nextSlide();
+    } else if (isRightSwipe) {
+      prevSlide();
+    }
   };
 
   const openUrl = (url: string) => {
@@ -40,411 +66,415 @@ export default function HomeScreen() {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: 'white' }]}>
-      {/* Hero Slider */}
-      <View style={styles.heroContainer}>
-        <ScrollView
-          ref={scrollViewRef}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={handleScroll}
-          scrollEventThrottle={16}
-          style={styles.heroSlider}
-          contentContainerStyle={styles.heroSliderContent}
-        >
-          {heroSlides.map((slide, index) => (
-            <View key={slide.id} style={styles.heroSlide}>
-              <Image 
-                source={slide.image} 
-                style={styles.heroImage}
-                resizeMode="cover"
-              />
-              <View style={styles.heroOverlay} />
-              <View style={styles.heroContent}>
-                <ThemedText style={styles.heroTitle}>{slide.title}</ThemedText>
-                {slide.subtitle && (
-                  <ThemedText style={styles.heroSubtitle}>{slide.subtitle}</ThemedText>
-                )}
-                <TouchableOpacity 
-                  style={styles.heroButton}
-                  onPress={() => Linking.openURL(`https://www.brisa.com.tr${slide.url}`)}
-                >
-                  <ThemedText style={styles.heroButtonText}>Keşfet</ThemedText>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
-        </ScrollView>
-
-        {/* Navigation Controls */}
-        <View style={styles.heroControls}>
-          <TouchableOpacity onPress={prevSlide} style={styles.heroNavButton}>
-            <ThemedText style={styles.arrowText}>‹</ThemedText>
-          </TouchableOpacity>
-          
-          <ThemedText style={styles.heroPagination}>
-            {String(currentSlide + 1).padStart(2, '0')}/{String(heroSlides.length).padStart(2, '0')}
-          </ThemedText>
-          
-          <TouchableOpacity onPress={nextSlide} style={styles.heroNavButton}>
-            <ThemedText style={styles.arrowText}>›</ThemedText>
-          </TouchableOpacity>
-        </View>
-
-        {/* Dots Indicator for Web */}
-        <View style={styles.heroIndicators}>
-          {heroSlides.map((_, index) => (
-            <TouchableOpacity
-              key={index}
+    <View style={{ flex: 1, backgroundColor: 'white' }}>
+      {/* Header with Logo */}
+      <BrisaHeader />
+      
+      <ScrollView style={[styles.container, { backgroundColor: 'white' }]}>
+        {/* Hero Slider - Web Native with Touch Support */}
+        <View style={styles.heroContainer}>
+          <View 
+            style={styles.heroSlider}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            <View 
               style={[
-                styles.heroDot,
-                currentSlide === index && styles.heroDotActive
+                styles.heroSliderTrack,
+                {
+                  transform: [{ translateX: -currentSlide * width }],
+                }
               ]}
-              onPress={() => {
-                setCurrentSlide(index);
-                scrollViewRef.current?.scrollTo({
-                  x: index * width,
-                  animated: true,
-                });
-              }}
-            />
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.content}>
-        {/* Mobilite Çözümleri */}
-        <View style={styles.mobilityMainSection}>
-          <ThemedText type="title" style={styles.mobilityMainTitle}>
-            Mobilite Çözümleri
-          </ThemedText>
-          <ThemedText style={styles.mobilityMainDescription}>
-            Bugünün gerekliliklerini yerine getirirken, geleceğe de hazırlanmak zorunda 
-            olduğumuzun farkındayız. Kendimizi sadece bir lastik üreticisi olarak değil, 
-            lastiğin ötesinde hizmetler sunan ve yolculuğun geleceğini tasarlayan bir şirket 
-            olarak konumlandırıyoruz.
-          </ThemedText>
-          <TouchableOpacity 
-            style={styles.mobilityMainButton}
-            onPress={() => openUrl('https://www.brisa.com.tr/teknoloji-ve-yenilikcilik/mobilite-cozumleri')}
-          >
-            <ThemedText style={styles.mobilityMainButtonText}>
-              Detaylı Bilgi →
-            </ThemedText>
-          </TouchableOpacity>
-        </View>
-
-        {/* Tarihçe ve CEO Mesajı Kutuları */}
-        <View style={styles.brisaBoxesSection}>
-          <View style={styles.boxRow}>
-            <TouchableOpacity 
-              style={styles.brisaBox}
-              onPress={() => openUrl('https://www.brisa.com.tr/hakkimizda/tarihce')}
             >
-              <Image 
-                source={require('@/assets/images/tarihce-box.jpg')} 
-                style={styles.boxImage}
-                resizeMode="cover"
-              />
-              <View style={styles.boxOverlay}>
-                <ThemedText style={styles.boxHeading}>BRİSA</ThemedText>
-                <ThemedText style={styles.boxTitle}>Tarihçe</ThemedText>
-                <View style={styles.boxButton}>
-                  <ThemedText style={styles.boxButtonText}>
-                    Detaylı Bilgi →
-                  </ThemedText>
+              {heroSlides.map((slide, index) => (
+                <View key={slide.id} style={styles.heroSlide}>
+                  <Image 
+                    source={slide.image} 
+                    style={styles.heroImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.heroOverlay} />
+                  <View style={styles.heroContent}>
+                    <ThemedText style={styles.heroTitle}>{slide.title}</ThemedText>
+                    {slide.subtitle && (
+                      <ThemedText style={styles.heroSubtitle}>{slide.subtitle}</ThemedText>
+                    )}
+                    <TouchableOpacity 
+                      style={styles.heroButton}
+                      onPress={() => Linking.openURL(`https://www.brisa.com.tr${slide.url}`)}
+                    >
+                      <ThemedText style={styles.heroButtonText}>Keşfet</ThemedText>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.brisaBox}
-              onPress={() => openUrl('https://www.brisa.com.tr/hakkimizda/ceo-mesaji')}
-            >
-              <Image 
-                source={require('@/assets/images/brisa-home-1.jpg')} 
-                style={styles.boxImage}
-                resizeMode="cover"
-              />
-              <View style={styles.boxOverlay}>
-                <ThemedText style={styles.boxHeading}>BRİSA</ThemedText>
-                <ThemedText style={styles.boxTitle}>CEO Mesajı</ThemedText>
-                <View style={styles.boxButton}>
-                  <ThemedText style={styles.boxButtonText}>
-                    Detaylı Bilgi →
-                  </ThemedText>
-                </View>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Teknoloji ve Yenilikçilik */}
-        <View style={styles.technologySection}>
-          <ThemedText type="title" style={styles.technologyTitle}>
-            Teknoloji ve Yenilikçilik
-          </ThemedText>
-          <ThemedText style={styles.technologyDescription}>
-            AR-GE Merkezimizdeki tasarım ve geliştirme çalışmaları, dijitalleşmede hız kazanan 
-            yolculuğumuz ve girişimcilerle ortak yürüttüğümüz çalışmalarla sadece lastik 
-            sektöründe değil yenilikte de lider olmayı hedefliyoruz.
-          </ThemedText>
-          <TouchableOpacity 
-            style={styles.technologyButton}
-            onPress={() => openUrl('https://www.brisa.com.tr/teknoloji-ve-yenilikcilik')}
-          >
-            <ThemedText style={styles.technologyButtonText}>
-              Detaylı Bilgi →
-            </ThemedText>
-          </TouchableOpacity>
-          <Image 
-            source={require('@/assets/images/brisa-home-1.jpg')} 
-            style={styles.technologyImage}
-            resizeMode="cover"
-          />
-        </View>
-
-        {/* Brisalı Olmak */}
-        <View style={styles.careerSection}>
-          <View style={styles.careerContent}>
-            <View style={styles.careerLeft}>
-              <ThemedText type="title" style={styles.careerTitle}>
-                Brisalı Olmak
-              </ThemedText>
-              <TouchableOpacity 
-                style={styles.careerButton}
-                onPress={() => openUrl('https://www.brisa.com.tr/brisali-olmak/acik-pozisyonlar')}
-              >
-                <ThemedText style={styles.careerButtonText}>
-                  Açık Pozisyonlar
-                </ThemedText>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.careerRight}>
-              <ThemedText style={styles.careerDescription}>
-                Türkiye&apos;nin öncü ve yenilikçi kurumlarından birinde kariyer fırsatlarını değerlendirmek ister misin?
-              </ThemedText>
+              ))}
             </View>
           </View>
-        </View>
 
-        {/* Yatırımcı Kiti */}
-        <View style={styles.investorKitSection}>
-          <View style={styles.investorBoxRow}>
-            {/* Finansal Bilgiler - Beyaz */}
-            <TouchableOpacity 
-              style={[styles.investorBox, styles.investorBoxWhite]}
-              onPress={() => openUrl('https://www.brisa.com.tr/yatirimci-iliskileri/sunumlar-ve-raporlar/finansal-tablolar-ve-bagimsiz-denetci-raporu/')}
-            >
-              <ThemedText style={styles.investorBoxHeading}>YATIRIMCI KİTİ</ThemedText>
-              <ThemedText style={styles.investorBoxTitle}>Finansal Bilgiler</ThemedText>
-              <View style={styles.investorBoxIcon}>
-                <ThemedText style={styles.investorIconText}>📊</ThemedText>
-              </View>
-              <View style={styles.investorBoxButton}>
-                <ThemedText style={styles.investorBoxButtonText}>
-                  Detaylı Bilgi →
-                </ThemedText>
-              </View>
+          {/* Navigation Controls */}
+          <View style={styles.heroControls}>
+            <TouchableOpacity onPress={prevSlide} style={styles.heroNavButton}>
+              <ThemedText style={styles.arrowText}>‹</ThemedText>
             </TouchableOpacity>
+            
+            <ThemedText style={styles.heroPagination}>
+              {String(currentSlide + 1).padStart(2, '0')}/{String(TOTAL_SLIDES).padStart(2, '0')}
+            </ThemedText>
+            
+            <TouchableOpacity onPress={nextSlide} style={styles.heroNavButton}>
+              <ThemedText style={styles.arrowText}>›</ThemedText>
+            </TouchableOpacity>
+          </View>
 
-            {/* Özet Finansal Tablolar - Mavi */}
-            <TouchableOpacity 
-              style={[styles.investorBox, styles.investorBoxBlue]}
-              onPress={() => openUrl('https://www.brisa.com.tr/uploads/docs/Brisa_ozet_Finansallar_1c_2025.pdf')}
-            >
-              <ThemedText style={[styles.investorBoxHeading, styles.investorBoxHeadingWhite]}>YATIRIMCI KİTİ</ThemedText>
-              <ThemedText style={[styles.investorBoxTitle, styles.investorBoxTitleWhite]}>Özet Finansal Tablolar</ThemedText>
-              <View style={styles.investorBoxIcon}>
-                <ThemedText style={styles.investorIconTextWhite}>⬇</ThemedText>
-              </View>
-              <View style={styles.investorBoxButtonWhite}>
-                <ThemedText style={[styles.investorBoxButtonText, styles.investorBoxButtonTextWhite]}>
-                  İndir - PDF 76KB
-                </ThemedText>
-              </View>
-            </TouchableOpacity>
+          {/* Dots Indicator */}
+          <View style={styles.heroIndicators}>
+            {heroSlides.map((_, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.heroDot,
+                  currentSlide === index && styles.heroDotActive
+                ]}
+                onPress={() => goToSlide(index)}
+              />
+            ))}
           </View>
         </View>
 
-        {/* Haberler */}
-        <View style={styles.newsSection}>
-          <ThemedText type="title" style={styles.newsTitle}>
-            Haberler
-          </ThemedText>
-          <ScrollView 
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.newsScrollContainer}
-            style={styles.newsScrollView}
-          >
-            {newsData.map((news) => (
+        <View style={styles.content}>
+          {/* Mobilite Çözümleri */}
+          <View style={styles.mobilityMainSection}>
+            <ThemedText type="title" style={styles.mobilityMainTitle}>
+              Mobilite Çözümleri
+            </ThemedText>
+            <ThemedText style={styles.mobilityMainDescription}>
+              Bugünün gerekliliklerini yerine getirirken, geleceğe de hazırlanmak zorunda 
+              olduğumuzun farkındayız. Kendimizi sadece bir lastik üreticisi olarak değil, 
+              lastiğin ötesinde hizmetler sunan ve yolculuğun geleceğini tasarlayan bir şirket 
+              olarak konumlandırıyoruz.
+            </ThemedText>
+            <TouchableOpacity 
+              style={styles.mobilityMainButton}
+              onPress={() => openUrl('https://www.brisa.com.tr/teknoloji-ve-yenilikcilik/mobilite-cozumleri')}
+            >
+              <ThemedText style={styles.mobilityMainButtonText}>
+                Detaylı Bilgi →
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+
+          {/* Tarihçe ve CEO Mesajı Kutuları */}
+          <View style={styles.brisaBoxesSection}>
+            <View style={styles.boxRow}>
               <TouchableOpacity 
-                key={news.id}
-                style={styles.newsCard}
-                onPress={() => openUrl('https://www.brisa.com.tr' + news.url)}
+                style={styles.brisaBox}
+                onPress={() => openUrl('https://www.brisa.com.tr/hakkimizda/tarihce')}
               >
-                <Image source={news.image} style={styles.newsCardImage} resizeMode="cover" />
-                <View style={styles.newsCardContent}>
-                  <ThemedText style={styles.newsCardTitle} numberOfLines={3}>
-                    {news.title}
-                  </ThemedText>
-                  <View style={styles.newsCardFooter}>
-                    <ThemedText style={styles.newsCardDate}>{news.date}</ThemedText>
-                    <View style={styles.newsCardArrow}>
-                      <ThemedText style={styles.newsCardArrowText}>→</ThemedText>
-                    </View>
+                <Image 
+                  source={require('@/assets/images/tarihce-box.jpg')} 
+                  style={styles.boxImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.boxOverlay}>
+                  <ThemedText style={styles.boxHeading}>BRİSA</ThemedText>
+                  <ThemedText style={styles.boxTitle}>Tarihçe</ThemedText>
+                  <View style={styles.boxButton}>
+                    <ThemedText style={styles.boxButtonText}>
+                      Detaylı Bilgi →
+                    </ThemedText>
                   </View>
                 </View>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
-          
-          <TouchableOpacity 
-            style={styles.allNewsButton}
-            onPress={() => openUrl('https://www.brisa.com.tr/haberler')}
-          >
-            <ThemedText style={styles.allNewsText}>
-              Tüm Haberler →
-            </ThemedText>
-          </TouchableOpacity>
-        </View>
 
-        {/* Footer */}
-        <View style={styles.footerSection}>
-          <View style={styles.footerContent}>
-            {/* Logo ve Designer */}
-            <View style={styles.footerColumn}>
-              <BrisaLogo width={80} height={22} />
-             
-            </View>
-
-            {/* Hızlı Linkler */}
-            <View style={styles.footerColumn}>
-              <ThemedText style={styles.footerTitle}>Hızlı Linkler</ThemedText>
-              <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/hakkimizda')}>
-                <ThemedText style={styles.footerLink}>Hakkımızda</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/teknoloji-ve-yenilikcilik')}>
-                <ThemedText style={styles.footerLink}>Teknoloji ve Yenilikçilik</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/yatirimci-iliskileri')}>
-                <ThemedText style={styles.footerLink}>Yatırımcı İlişkileri</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/surdurulebilirlik')}>
-                <ThemedText style={styles.footerLink}>Sürdürülebilirlik</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/brisali-olmak')}>
-                <ThemedText style={styles.footerLink}>Brisalı Olmak</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/haberler')}>
-                <ThemedText style={styles.footerLink}>Haberler</ThemedText>
-              </TouchableOpacity>
-            </View>
-
-            {/* İletişim */}
-            <View style={styles.footerColumn}>
-              <ThemedText style={styles.footerTitle}>İletişim</ThemedText>
-              <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/bize-ulasin')}>
-                <ThemedText style={styles.footerLink}>Bize Ulaşın</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/iletisim-formu')}>
-                <ThemedText style={styles.footerLink}>İletişim Formu</ThemedText>
-              </TouchableOpacity>
-            </View>
-
-            {/* Social Media */}
-            <View style={styles.footerColumn}>
-              <ThemedText style={styles.footerTitle}>@Follow Brisa</ThemedText>
-              <TouchableOpacity onPress={() => openUrl('https://www.facebook.com/BrisaTurkiye')}>
-                <ThemedText style={styles.footerLink}>Facebook</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => openUrl('https://twitter.com/BrisaTurkiye')}>
-                <ThemedText style={styles.footerLink}>Twitter</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => openUrl('https://www.instagram.com/brisa.tr')}>
-                <ThemedText style={styles.footerLink}>Instagram</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => openUrl('https://www.youtube.com/channel/UCzNt-uJOgl_EFX7p6LCB0-A')}>
-                <ThemedText style={styles.footerLink}>Youtube</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => openUrl('https://www.linkedin.com/company/brisa-bridgestone-sabanci')}>
-                <ThemedText style={styles.footerLink}>Linkedin</ThemedText>
+              <TouchableOpacity 
+                style={styles.brisaBox}
+                onPress={() => openUrl('https://www.brisa.com.tr/hakkimizda/ceo-mesaji')}
+              >
+                <Image 
+                  source={require('@/assets/images/brisa-home-1.jpg')} 
+                  style={styles.boxImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.boxOverlay}>
+                  <ThemedText style={styles.boxHeading}>BRİSA</ThemedText>
+                  <ThemedText style={styles.boxTitle}>CEO Mesajı</ThemedText>
+                  <View style={styles.boxButton}>
+                    <ThemedText style={styles.boxButtonText}>
+                      Detaylı Bilgi →
+                    </ThemedText>
+                  </View>
+                </View>
               </TouchableOpacity>
             </View>
           </View>
-          
-          <View style={styles.footerSeparator} />
-          
-          {/* Sub Footer */}
-          <View style={styles.subFooter}>
-            {/* Copyright */}
-            <View style={styles.copyrightSection}>
-              <ThemedText style={styles.copyrightText}>
-                © 2025 COPYRIGHT BRİSA ALL RIGHTS RESERVED
+
+          {/* Teknoloji ve Yenilikçilik */}
+          <View style={styles.technologySection}>
+            <ThemedText type="title" style={styles.technologyTitle}>
+              Teknoloji ve Yenilikçilik
+            </ThemedText>
+            <ThemedText style={styles.technologyDescription}>
+              AR-GE Merkezimizdeki tasarım ve geliştirme çalışmaları, dijitalleşmede hız kazanan 
+              yolculuğumuz ve girişimcilerle ortak yürüttüğümüz çalışmalarla sadece lastik 
+              sektöründe değil yenilikte de lider olmayı hedefliyoruz.
+            </ThemedText>
+            <TouchableOpacity 
+              style={styles.technologyButton}
+              onPress={() => openUrl('https://www.brisa.com.tr/teknoloji-ve-yenilikcilik')}
+            >
+              <ThemedText style={styles.technologyButtonText}>
+                Detaylı Bilgi →
               </ThemedText>
-            </View>
+            </TouchableOpacity>
+            <Image 
+              source={require('@/assets/images/brisa-home-1.jpg')} 
+              style={styles.technologyImage}
+              resizeMode="cover"
+            />
+          </View>
 
-            {/* Yasal Linkler */}
-            <View style={styles.legalLinksSection}>
-              <TouchableOpacity 
-                style={styles.cookieButton}
-                onPress={() => openUrl('https://www.brisa.com.tr/cerez-politikasi')}
-              >
-                <ThemedText style={styles.cookieIcon}>🍪</ThemedText>
-                <ThemedText style={styles.legalLinkText}>ÇEREZ AYARLARI</ThemedText>
-              </TouchableOpacity>
-              
-              <TouchableOpacity onPress={() => openUrl('https://www.sabanci.com/')}>
-                <ThemedText style={styles.legalLinkText}>SABANCI HOLDİNG</ThemedText>
-              </TouchableOpacity>
-              
-              <TouchableOpacity onPress={() => openUrl('https://www.bridgestone.com/')}>
-                <ThemedText style={styles.legalLinkText}>BRIDGESTONE CORPORATION</ThemedText>
-              </TouchableOpacity>
-              
-              <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/kisisel-verilerin-korunmasi')}>
-                <ThemedText style={styles.legalLinkText}>KİŞİSEL VERİLERİN KORUNMASI</ThemedText>
-              </TouchableOpacity>
-              
-              <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/kullanim-kosullari')}>
-                <ThemedText style={styles.legalLinkText}>KULLANIM KOŞULLARI</ThemedText>
-              </TouchableOpacity>
-              
-              <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/gizlilik')}>
-                <ThemedText style={styles.legalLinkText}>GİZLİLİK</ThemedText>
-              </TouchableOpacity>
-              
-              <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/cerez-politikasi')}>
-                <ThemedText style={styles.legalLinkText}>ÇEREZ AYDINLATMA METNİ</ThemedText>
-              </TouchableOpacity>
-            </View>
-
-            {/* Designer (Mobil için tekrar) */}
-            <View style={styles.mobileDesignerSection}>
-              <TouchableOpacity>
-                <ThemedText style={styles.mobileDesignerText}>
-                  stolen BY kry23
+          {/* Brisalı Olmak */}
+          <View style={styles.careerSection}>
+            <View style={styles.careerContent}>
+              <View style={styles.careerLeft}>
+                <ThemedText type="title" style={styles.careerTitle}>
+                  Brisalı Olmak
                 </ThemedText>
+                <TouchableOpacity 
+                  style={styles.careerButton}
+                  onPress={() => openUrl('https://www.brisa.com.tr/brisali-olmak/acik-pozisyonlar')}
+                >
+                  <ThemedText style={styles.careerButtonText}>
+                    Açık Pozisyonlar
+                  </ThemedText>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.careerRight}>
+                <ThemedText style={styles.careerDescription}>
+                  Türkiye&apos;nin öncü ve yenilikçi kurumlarından birinde kariyer fırsatlarını değerlendirmek ister misin?
+                </ThemedText>
+              </View>
+            </View>
+          </View>
+
+          {/* Yatırımcı Kiti */}
+          <View style={styles.investorKitSection}>
+            <View style={styles.investorBoxRow}>
+              {/* Finansal Bilgiler - Beyaz */}
+              <TouchableOpacity 
+                style={[styles.investorBox, styles.investorBoxWhite]}
+                onPress={() => openUrl('https://www.brisa.com.tr/yatirimci-iliskileri/sunumlar-ve-raporlar/finansal-tablolar-ve-bagimsiz-denetci-raporu/')}
+              >
+                <ThemedText style={styles.investorBoxHeading}>YATIRIMCI KİTİ</ThemedText>
+                <ThemedText style={styles.investorBoxTitle}>Finansal Bilgiler</ThemedText>
+                <View style={styles.investorBoxIcon}>
+                  <ThemedText style={styles.investorIconText}>📊</ThemedText>
+                </View>
+                <View style={styles.investorBoxButton}>
+                  <ThemedText style={styles.investorBoxButtonText}>
+                    Detaylı Bilgi →
+                  </ThemedText>
+                </View>
+              </TouchableOpacity>
+
+              {/* Özet Finansal Tablolar - Mavi */}
+              <TouchableOpacity 
+                style={[styles.investorBox, styles.investorBoxBlue]}
+                onPress={() => openUrl('https://www.brisa.com.tr/uploads/docs/Brisa_ozet_Finansallar_1c_2025.pdf')}
+              >
+                <ThemedText style={[styles.investorBoxHeading, styles.investorBoxHeadingWhite]}>YATIRIMCI KİTİ</ThemedText>
+                <ThemedText style={[styles.investorBoxTitle, styles.investorBoxTitleWhite]}>Özet Finansal Tablolar</ThemedText>
+                <View style={styles.investorBoxIcon}>
+                  <ThemedText style={styles.investorIconTextWhite}>⬇</ThemedText>
+                </View>
+                <View style={styles.investorBoxButtonWhite}>
+                  <ThemedText style={[styles.investorBoxButtonText, styles.investorBoxButtonTextWhite]}>
+                    İndir - PDF 76KB
+                  </ThemedText>
+                </View>
               </TouchableOpacity>
             </View>
+          </View>
 
-            {/* Sabancı 100. Yıl Logosu */}
-            <View style={styles.sabanci100Section}>
-              <View style={styles.sabanci100Container}>
-                <View style={styles.sabanci100Line} />
-                <View style={styles.sabanci100LogoContainer}>
-                  <ThemedText style={styles.sabanci100Logo}>SABANCI 100</ThemedText>
-                  <ThemedText style={styles.sabanci100Subtitle}>BİRLİKTELİĞİN YÜZYILI</ThemedText>
+          {/* Haberler */}
+          <View style={styles.newsSection}>
+            <ThemedText type="title" style={styles.newsTitle}>
+              Haberler
+            </ThemedText>
+            <ScrollView 
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.newsScrollContainer}
+              style={styles.newsScrollView}
+            >
+              {newsData.map((news) => (
+                <TouchableOpacity 
+                  key={news.id}
+                  style={styles.newsCard}
+                  onPress={() => openUrl('https://www.brisa.com.tr' + news.url)}
+                >
+                  <Image source={news.image} style={styles.newsCardImage} resizeMode="cover" />
+                  <View style={styles.newsCardContent}>
+                    <ThemedText style={styles.newsCardTitle} numberOfLines={3}>
+                      {news.title}
+                    </ThemedText>
+                    <View style={styles.newsCardFooter}>
+                      <ThemedText style={styles.newsCardDate}>{news.date}</ThemedText>
+                      <View style={styles.newsCardArrow}>
+                        <ThemedText style={styles.newsCardArrowText}>→</ThemedText>
+                      </View>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            
+            <TouchableOpacity 
+              style={styles.allNewsButton}
+              onPress={() => openUrl('https://www.brisa.com.tr/haberler')}
+            >
+              <ThemedText style={styles.allNewsText}>
+                Tüm Haberler →
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+
+          {/* Footer */}
+          <View style={styles.footerSection}>
+            <View style={styles.footerContent}>
+              {/* Logo ve Designer */}
+              <View style={styles.footerColumn}>
+                <BrisaLogo width={80} height={22} />
+               
+              </View>
+
+              {/* Hızlı Linkler */}
+              <View style={styles.footerColumn}>
+                <ThemedText style={styles.footerTitle}>Hızlı Linkler</ThemedText>
+                <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/hakkimizda')}>
+                  <ThemedText style={styles.footerLink}>Hakkımızda</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/teknoloji-ve-yenilikcilik')}>
+                  <ThemedText style={styles.footerLink}>Teknoloji ve Yenilikçilik</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/yatirimci-iliskileri')}>
+                  <ThemedText style={styles.footerLink}>Yatırımcı İlişkileri</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/surdurulebilirlik')}>
+                  <ThemedText style={styles.footerLink}>Sürdürülebilirlik</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/brisali-olmak')}>
+                  <ThemedText style={styles.footerLink}>Brisalı Olmak</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/haberler')}>
+                  <ThemedText style={styles.footerLink}>Haberler</ThemedText>
+                </TouchableOpacity>
+              </View>
+
+              {/* İletişim */}
+              <View style={styles.footerColumn}>
+                <ThemedText style={styles.footerTitle}>İletişim</ThemedText>
+                <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/bize-ulasin')}>
+                  <ThemedText style={styles.footerLink}>Bize Ulaşın</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/iletisim-formu')}>
+                  <ThemedText style={styles.footerLink}>İletişim Formu</ThemedText>
+                </TouchableOpacity>
+              </View>
+
+              {/* Social Media */}
+              <View style={styles.footerColumn}>
+                <ThemedText style={styles.footerTitle}>@Follow Brisa</ThemedText>
+                <TouchableOpacity onPress={() => openUrl('https://www.facebook.com/BrisaTurkiye')}>
+                  <ThemedText style={styles.footerLink}>Facebook</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => openUrl('https://twitter.com/BrisaTurkiye')}>
+                  <ThemedText style={styles.footerLink}>Twitter</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => openUrl('https://www.instagram.com/brisa.tr')}>
+                  <ThemedText style={styles.footerLink}>Instagram</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => openUrl('https://www.youtube.com/channel/UCzNt-uJOgl_EFX7p6LCB0-A')}>
+                  <ThemedText style={styles.footerLink}>Youtube</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => openUrl('https://www.linkedin.com/company/brisa-bridgestone-sabanci')}>
+                  <ThemedText style={styles.footerLink}>Linkedin</ThemedText>
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            <View style={styles.footerSeparator} />
+            
+            {/* Sub Footer */}
+            <View style={styles.subFooter}>
+              {/* Copyright */}
+              <View style={styles.copyrightSection}>
+                <ThemedText style={styles.copyrightText}>
+                  © 2025 COPYRIGHT BRİSA ALL RIGHTS RESERVED
+                </ThemedText>
+              </View>
+
+              {/* Yasal Linkler */}
+              <View style={styles.legalLinksSection}>
+                <TouchableOpacity 
+                  style={styles.cookieButton}
+                  onPress={() => openUrl('https://www.brisa.com.tr/cerez-politikasi')}
+                >
+                  <ThemedText style={styles.cookieIcon}>🍪</ThemedText>
+                  <ThemedText style={styles.legalLinkText}>ÇEREZ AYARLARI</ThemedText>
+                </TouchableOpacity>
+                
+                <TouchableOpacity onPress={() => openUrl('https://www.sabanci.com/')}>
+                  <ThemedText style={styles.legalLinkText}>SABANCI HOLDİNG</ThemedText>
+                </TouchableOpacity>
+                
+                <TouchableOpacity onPress={() => openUrl('https://www.bridgestone.com/')}>
+                  <ThemedText style={styles.legalLinkText}>BRIDGESTONE CORPORATION</ThemedText>
+                </TouchableOpacity>
+                
+                <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/kisisel-verilerin-korunmasi')}>
+                  <ThemedText style={styles.legalLinkText}>KİŞİSEL VERİLERİN KORUNMASI</ThemedText>
+                </TouchableOpacity>
+                
+                <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/kullanim-kosullari')}>
+                  <ThemedText style={styles.legalLinkText}>KULLANIM KOŞULLARI</ThemedText>
+                </TouchableOpacity>
+                
+                <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/gizlilik')}>
+                  <ThemedText style={styles.legalLinkText}>GİZLİLİK</ThemedText>
+                </TouchableOpacity>
+                
+                <TouchableOpacity onPress={() => openUrl('https://www.brisa.com.tr/cerez-politikasi')}>
+                  <ThemedText style={styles.legalLinkText}>ÇEREZ AYDINLATMA METNİ</ThemedText>
+                </TouchableOpacity>
+              </View>
+
+              {/* Designer (Mobil için tekrar) */}
+              <View style={styles.mobileDesignerSection}>
+                <TouchableOpacity>
+                  <ThemedText style={styles.mobileDesignerText}>
+                    stolen BY kry23
+                  </ThemedText>
+                </TouchableOpacity>
+              </View>
+
+              {/* Sabancı 100. Yıl Logosu */}
+              <View style={styles.sabanci100Section}>
+                <View style={styles.sabanci100Container}>
+                  <View style={styles.sabanci100Line} />
+                  <View style={styles.sabanci100LogoContainer}>
+                    <ThemedText style={styles.sabanci100Logo}>SABANCI 100</ThemedText>
+                    <ThemedText style={styles.sabanci100Subtitle}>BİRLİKTELİĞİN YÜZYILI</ThemedText>
+                  </View>
+                  <View style={styles.sabanci100Line} />
                 </View>
-                <View style={styles.sabanci100Line} />
               </View>
             </View>
           </View>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -462,9 +492,16 @@ const styles = StyleSheet.create({
   heroSlider: {
     flex: 1,
     width: '100%',
+    overflow: 'hidden',
   },
-  heroSliderContent: {
+  heroSliderTrack: {
     flexDirection: 'row',
+    width: width * TOTAL_SLIDES,
+    height: '100%',
+    // Web transition animation
+    ...(Platform.OS === 'web' && {
+      transition: 'transform 0.3s ease-in-out',
+    }),
   },
   heroSlide: {
     width: width,

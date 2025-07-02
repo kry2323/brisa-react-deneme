@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "BrisaApp",
-    "slug": "BrisaApp",
+    "name": "Brisa Mobil",
+    "slug": "brisa-react-native",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -9,14 +9,17 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.brisa.mobile"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.brisa.mobile",
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
@@ -37,6 +40,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a33d789a-bf3c-461e-89f2-55d4450c6a09"
+      },
+      "router": {}
+    },
+    "owner": "kry23"
   }
 }
