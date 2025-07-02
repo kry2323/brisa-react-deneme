@@ -115,7 +115,7 @@ export function BrisaHeader() {
   return (
     <>
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
+        <View style={[styles.header, { height: 100, justifyContent: 'flex-end' }]}>
           <View style={styles.headerContent}>
             {/* Logo */}
             <TouchableOpacity 
@@ -268,6 +268,7 @@ const styles = StyleSheet.create({
   safeArea: {
     backgroundColor: '#fff',
     zIndex: 95,
+
   },
   header: {
     backgroundColor: '#fff',

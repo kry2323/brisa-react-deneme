@@ -1,18 +1,15 @@
 import { BrisaLogo } from '@/components';
-import { BrisaHeader } from '@/components/BrisaHeader';
 import { ThemedText } from '@/components/ThemedText';
 import { heroSlides, newsData } from '@/constants/AppData';
 import { utils } from '@/constants/Utilities';
 import { useEffect, useState } from 'react';
-import { Dimensions, Image, Linking, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Image, Linking, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 const { width } = Dimensions.get('window');
 const TOTAL_SLIDES = 5; // heroSlides.length yerine sabit değer
 
 export default function HomeScreen() {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [touchStart, setTouchStart] = useState(0);
-  const [touchEnd, setTouchEnd] = useState(0);
 
   // Auto-slide effect for web
   useEffect(() => {
@@ -37,29 +34,7 @@ export default function HomeScreen() {
     setCurrentSlide(index);
   };
 
-  // Touch/Swipe handlers
-  const handleTouchStart = (event: any) => {
-    setTouchEnd(0); // Reset touchEnd
-    setTouchStart(event.nativeEvent.pageX);
-  };
 
-  const handleTouchMove = (event: any) => {
-    setTouchEnd(event.nativeEvent.pageX);
-  };
-
-  const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > 50;
-    const isRightSwipe = distance < -50;
-
-    if (isLeftSwipe) {
-      nextSlide();
-    } else if (isRightSwipe) {
-      prevSlide();
-    }
-  };
 
   const openUrl = (url: string) => {
     Linking.openURL(url);
@@ -67,50 +42,42 @@ export default function HomeScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: 'white' }}>
-      {/* Header with Logo */}
-      <BrisaHeader />
-      
       <ScrollView style={[styles.container, { backgroundColor: 'white' }]}>
-        {/* Hero Slider - Web Native with Touch Support */}
+        {/* Hero Slider - ScrollView with Paging */}
         <View style={styles.heroContainer}>
-          <View 
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(event) => {
+              const slideIndex = Math.round(event.nativeEvent.contentOffset.x / width);
+              setCurrentSlide(slideIndex);
+            }}
             style={styles.heroSlider}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
           >
-            <View 
-              style={[
-                styles.heroSliderTrack,
-                {
-                  transform: [{ translateX: -currentSlide * width }],
-                }
-              ]}
-            >
-              {heroSlides.map((slide, index) => (
-                <View key={slide.id} style={styles.heroSlide}>
-                  <Image 
-                    source={slide.image} 
-                    style={styles.heroImage}
-                    resizeMode="cover"
-                  />
-                  <View style={styles.heroOverlay} />
-                  <View style={styles.heroContent}>
-                    <ThemedText style={styles.heroTitle}>{slide.title}</ThemedText>
-                    {slide.subtitle && (
-                      <ThemedText style={styles.heroSubtitle}>{slide.subtitle}</ThemedText>
-                    )}
-                    <TouchableOpacity 
-                      style={styles.heroButton}
-                      onPress={() => Linking.openURL(`https://www.brisa.com.tr${slide.url}`)}
-                    >
-                      <ThemedText style={styles.heroButtonText}>Keşfet</ThemedText>
-                    </TouchableOpacity>
-                  </View>
+            {heroSlides.map((slide, index) => (
+              <View key={slide.id} style={[styles.heroSlide, { width }]}>
+                <Image 
+                  source={slide.image} 
+                  style={styles.heroImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.heroOverlay} />
+                <View style={styles.heroContent}>
+                  <ThemedText style={styles.heroTitle}>{slide.title}</ThemedText>
+                  {slide.subtitle && (
+                    <ThemedText style={styles.heroSubtitle}>{slide.subtitle}</ThemedText>
+                  )}
+                  <TouchableOpacity 
+                    style={styles.heroButton}
+                    onPress={() => Linking.openURL(`https://www.brisa.com.tr${slide.url}`)}
+                  >
+                    <ThemedText style={styles.heroButtonText}>Keşfet</ThemedText>
+                  </TouchableOpacity>
                 </View>
-              ))}
-            </View>
-          </View>
+              </View>
+            ))}
+          </ScrollView>
 
           {/* Navigation Controls */}
           <View style={styles.heroControls}>
@@ -494,15 +461,7 @@ const styles = StyleSheet.create({
     width: '100%',
     overflow: 'hidden',
   },
-  heroSliderTrack: {
-    flexDirection: 'row',
-    width: width * TOTAL_SLIDES,
-    height: '100%',
-    // Web transition animation
-    ...(Platform.OS === 'web' && {
-      transition: 'transform 0.3s ease-in-out',
-    }),
-  },
+
   heroSlide: {
     width: width,
     height: 700,
