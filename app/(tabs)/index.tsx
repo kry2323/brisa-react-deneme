@@ -1,7 +1,6 @@
 import { BrisaLogo } from '@/components';
 import { ThemedText } from '@/components/ThemedText';
 import { heroSlides, newsData } from '@/constants/AppData';
-import { TYPOGRAPHY } from '@/constants/Typography';
 import { utils } from '@/constants/Utilities';
 import { useRef, useState } from 'react';
 import { Dimensions, Image, Linking, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -9,90 +8,108 @@ import { Dimensions, Image, Linking, ScrollView, StyleSheet, TouchableOpacity, V
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
-  const [currentPage, setCurrentPage] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  const nextSlide = () => {
+    const next = (currentSlide + 1) % heroSlides.length;
+    setCurrentSlide(next);
+    scrollViewRef.current?.scrollTo({
+      x: next * width,
+      animated: true,
+    });
+  };
+
+  const prevSlide = () => {
+    const prev = currentSlide === 0 ? heroSlides.length - 1 : currentSlide - 1;
+    setCurrentSlide(prev);
+    scrollViewRef.current?.scrollTo({
+      x: prev * width,
+      animated: true,
+    });
+  };
+
+  const handleScroll = (event: any) => {
+    const contentOffset = event.nativeEvent.contentOffset;
+    const slideIndex = Math.round(contentOffset.x / width);
+    setCurrentSlide(slideIndex);
+  };
 
   const openUrl = (url: string) => {
     Linking.openURL(url);
   };
 
-  const goToPreviousPage = () => {
-    if (currentPage > 0) {
-      const newPage = currentPage - 1;
-      scrollViewRef.current?.scrollTo({ x: newPage * width, animated: true });
-      setCurrentPage(newPage);
-    }
-  };
-
-  const goToNextPage = () => {
-    if (currentPage < heroSlides.length - 1) {
-      const newPage = currentPage + 1;
-      scrollViewRef.current?.scrollTo({ x: newPage * width, animated: true });
-      setCurrentPage(newPage);
-    }
-  };
-
   return (
     <ScrollView style={[styles.container, { backgroundColor: 'white' }]}>
-      {/* Hero Section */}
-      <View style={styles.heroSection}>
-        <ScrollView 
+      {/* Hero Slider */}
+      <View style={styles.heroContainer}>
+        <ScrollView
           ref={scrollViewRef}
-          style={styles.pagerView} 
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
-          onScroll={(e) => {
-            const x = e.nativeEvent.contentOffset.x;
-            const index = Math.round(x / width);
-            setCurrentPage(index);
-          }}
+          onMomentumScrollEnd={handleScroll}
           scrollEventThrottle={16}
+          style={styles.heroSlider}
+          contentContainerStyle={styles.heroSliderContent}
         >
-          {heroSlides.map((slide) => (
-            <View key={slide.id} style={[styles.heroSlide, { width, height: 450 }]}>
-              <Image source={slide.image} style={[styles.heroImage, { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }]} resizeMode="cover" />
-              <View style={styles.heroOverlay}>
-                <View style={styles.heroContent}>
-                  <ThemedText type="title" style={styles.heroTitle}>
-                    {slide.title}
-                  </ThemedText>
-                  {slide.subtitle ? (
-                    <ThemedText style={styles.heroSubtitle}>
-                      {slide.subtitle}
-                    </ThemedText>
-                  ) : null}
-                  <TouchableOpacity 
-                    style={styles.heroButton}
-                    onPress={() => openUrl('https://www.brisa.com.tr' + slide.url)}
-                  >
-                    <ThemedText style={styles.heroButtonText}>
-                      Detay
-                    </ThemedText>
-                  </TouchableOpacity>
-                </View>
+          {heroSlides.map((slide, index) => (
+            <View key={slide.id} style={styles.heroSlide}>
+              <Image 
+                source={slide.image} 
+                style={styles.heroImage}
+                resizeMode="cover"
+              />
+              <View style={styles.heroOverlay} />
+              <View style={styles.heroContent}>
+                <ThemedText style={styles.heroTitle}>{slide.title}</ThemedText>
+                {slide.subtitle && (
+                  <ThemedText style={styles.heroSubtitle}>{slide.subtitle}</ThemedText>
+                )}
+                <TouchableOpacity 
+                  style={styles.heroButton}
+                  onPress={() => Linking.openURL(`https://www.brisa.com.tr${slide.url}`)}
+                >
+                  <ThemedText style={styles.heroButtonText}>Keşfet</ThemedText>
+                </TouchableOpacity>
               </View>
             </View>
           ))}
         </ScrollView>
-        
-        {/* Pagination */}
-        <View style={styles.paginationContainer}>
-          <TouchableOpacity onPress={goToPreviousPage} style={styles.paginationArrow}>
+
+        {/* Navigation Controls */}
+        <View style={styles.heroControls}>
+          <TouchableOpacity onPress={prevSlide} style={styles.heroNavButton}>
             <ThemedText style={styles.arrowText}>‹</ThemedText>
           </TouchableOpacity>
-          <View style={styles.paginationText}>
-            <ThemedText style={styles.paginationCurrent}>
-              {String(currentPage + 1).padStart(2, '0')}
-            </ThemedText>
-            <ThemedText style={styles.paginationSeparator}> / </ThemedText>
-            <ThemedText style={styles.paginationTotal}>
-              {String(heroSlides.length).padStart(2, '0')}
-            </ThemedText>
-          </View>
-          <TouchableOpacity onPress={goToNextPage} style={styles.paginationArrow}>
+          
+          <ThemedText style={styles.heroPagination}>
+            {String(currentSlide + 1).padStart(2, '0')}/{String(heroSlides.length).padStart(2, '0')}
+          </ThemedText>
+          
+          <TouchableOpacity onPress={nextSlide} style={styles.heroNavButton}>
             <ThemedText style={styles.arrowText}>›</ThemedText>
           </TouchableOpacity>
+        </View>
+
+        {/* Dots Indicator for Web */}
+        <View style={styles.heroIndicators}>
+          {heroSlides.map((_, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.heroDot,
+                currentSlide === index && styles.heroDotActive
+              ]}
+              onPress={() => {
+                setCurrentSlide(index);
+                scrollViewRef.current?.scrollTo({
+                  x: index * width,
+                  animated: true,
+                });
+              }}
+            />
+          ))}
         </View>
       </View>
 
@@ -437,26 +454,32 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     paddingTop: 0,
   },
-  heroSection: {
+  heroContainer: {
     height: 700,
+    position: 'relative',
+    overflow: 'hidden',
   },
-  pagerView: {
+  heroSlider: {
     flex: 1,
+    width: '100%',
+  },
+  heroSliderContent: {
+    flexDirection: 'row',
   },
   heroSlide: {
-    flex: 1,
-    position: 'relative',
     width: width,
-    height: 450,
+    height: 700,
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   heroImage: {
-    width: '100%',
-    height: '100%',
     position: 'absolute',
     top: 0,
     left: 0,
-    right: 0,
-    bottom: 0,
+    width: '100%',
+    height: '100%',
+    zIndex: 1,
   },
   heroOverlay: {
     position: 'absolute',
@@ -464,58 +487,113 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'transparent',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    zIndex: 2,
   },
   heroContent: {
+    position: 'absolute',
+    bottom: 100,
+    left: 20,
+    right: 20,
+    zIndex: 3,
     alignItems: 'center',
-    maxWidth: width - 40,
   },
   heroTitle: {
-    ...TYPOGRAPHY.h2,
-    color: 'white',
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#fff',
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
     textShadowColor: 'rgba(0, 0, 0, 0.8)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
   },
   heroSubtitle: {
-    ...TYPOGRAPHY.bodyLarge,
-    color: 'white',
+    fontSize: 16,
+    color: '#fff',
     textAlign: 'center',
-    marginBottom: 16,
-    opacity: 0.9,
+    marginBottom: 20,
     textShadowColor: 'rgba(0, 0, 0, 0.8)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
   },
-  heroDescription: {
-    color: 'white',
-    textAlign: 'center',
-    fontSize: 16,
-    lineHeight: 22,
-    marginBottom: 24,
-    opacity: 0.8,
-  },
   heroButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    backgroundColor: '#0066CC',
+    paddingHorizontal: 30,
+    paddingVertical: 15,
     borderRadius: 25,
-    borderWidth: 2,
-    borderColor: 'white',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
   },
   heroButtonText: {
-    ...TYPOGRAPHY.button,
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  heroControls: {
+    position: 'absolute',
+    bottom: 30,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 4,
+    gap: 20,
+  },
+  heroNavButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  arrowText: {
+    ...utils.font.bold,
     color: '#0066CC',
+    fontSize: 24,
+  },
+  heroPagination: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+  },
+  heroIndicators: {
+    position: 'absolute',
+    bottom: 10,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 4,
+    gap: 8,
+  },
+  heroDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  heroDotActive: {
+    backgroundColor: '#fff',
+    width: 24,
   },
   content: {
     flex: 1,
@@ -733,11 +811,6 @@ const styles = StyleSheet.create({
     color: '#0066CC',
     fontSize: 16,
     fontWeight: '600',
-  },
-  arrowText: {
-    ...utils.font.bold,
-    color: '#0066CC',
-    fontSize: 24,
   },
   sustainabilityHero: {
     position: 'relative',
